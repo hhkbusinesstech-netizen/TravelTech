@@ -43,12 +43,20 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ client, allBookin
         <section className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-gray-700">Contact Information</h3>
-            <button
-              onClick={() => onEditClient(client)}
-              className="text-sm px-3 py-1 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
-            >
-              Edit Details
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => onCreateBooking(client)}
+                className="text-sm px-3 py-1 bg-green-600 text-white border border-green-700 rounded hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
+              >
+                + New Booking
+              </button>
+              <button
+                onClick={() => onEditClient(client)}
+                className="text-sm px-3 py-1 bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+              >
+                Edit Details
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md border border-gray-200">
             <p className="text-gray-700"><strong className="font-medium">Email:</strong> {client.email}</p>
