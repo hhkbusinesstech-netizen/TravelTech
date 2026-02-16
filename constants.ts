@@ -1,127 +1,175 @@
 
 export const ARCHITECTURE_DOCUMENT_CONTENT = `
-<h1 class="text-3xl font-bold mb-6 text-gray-800">ShareTrip-Style Platform System Foundation</h1>
+<h1 class="text-3xl font-bold mb-6 text-gray-800">Phase 1: Flights (Amadeus) + B2C MVP Implementation</h1>
 
-<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">1. Module Map</h2>
-<ul class="list-disc list-inside space-y-2 ml-4 mb-6 text-gray-600">
+<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">1. Data Model (DocTypes)</h2>
+<p class="mb-4 text-gray-600">The following Frappe DocTypes are required to handle the Amadeus lifecycle and B2C flow.</p>
+
+<ul class="list-disc list-inside space-y-4 ml-4 mb-6 text-gray-600">
     <li>
-        <strong class="font-medium text-gray-800">Core Travel Services:</strong>
-        <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-            <li><strong>Flights:</strong> Search, Booking, PNR Management, Ticketing, Ancillaries, Cancellations/Refunds, Fare Rules.</li>
-            <li><strong>Hotels:</strong> Search, Booking, Room Management, Cancellations/Refunds, Special Requests.</li>
-            <li><strong>Packages:</strong> Dynamic/Static Package Creation, Itinerary Management, Pricing, Booking, Components (flights, hotels, activities).</li>
-            <li><strong>Visa:</strong> Application Tracking, Document Management, Status Updates, Fee Management.</li>
-            <li><strong>Add-ons:</strong> Travel Insurance, Airport Transfers, Activities/Tours, Lounge Access.</li>
+        <strong class="font-medium text-gray-800">Travel Search Session</strong>
+        <ul class="list-disc list-inside space-y-1 ml-6 mt-1 text-sm">
+            <li><strong>Purpose:</strong> Analytics and debugging.</li>
+            <li><strong>Fields:</strong> <code>session_id</code>, <code>search_params</code> (JSON: origin, dest, dates, pax), <code>result_count</code>, <code>platform</code> (Web/App), <code>ip_address</code>.</li>
         </ul>
     </li>
     <li>
-        <strong class="font-medium text-gray-800">Portals:</strong>
-        <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-            <li><strong>Customer Portal (B2C/B2B):</strong> Booking History, Profile Management, Wishlist, Notifications, Self-service Cancellations/Modifications.</li>
-            <li><strong>Agent Portal (B2B):</strong> Client Management, Booking Management, Commission Tracking, Quoting, Sub-agency tools.</li>
-            <li><strong>Vendor Portal:</strong> Inventory/Rate Management (Hotels), Booking Confirmation/Updates, Payment Reconciliation, Performance Reports.</li>
+        <strong class="font-medium text-gray-800">Flight Offer Snapshot</strong> (Immutable)
+        <ul class="list-disc list-inside space-y-1 ml-6 mt-1 text-sm">
+            <li><strong>Purpose:</strong> Stores the exact JSON blob returned by Amadeus <code>flight-offers-pricing</code>. This is the contract sold to the customer.</li>
+            <li><strong>Fields:</strong> <code>offer_id</code>, <code>source_json</code> (JSON), <code>total_price</code>, <code>currency</code>, <code>expiry_datetime</code> (TTL), <code>fare_rules_summary</code>.</li>
         </ul>
     </li>
     <li>
-        <strong class="font-medium text-gray-800">Operations & Support:</strong>
-        <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-            <li><strong>Helpdesk:</strong> Ticket Management, Customer/Booking Inquiry Handling, FAQ integration.</li>
-            <li><strong>Booking Fulfilment:</strong> Manual Intervention, Supplier Communication, Service Delivery Monitoring.</li>
-            <li><strong>Content Management:</strong> Destination guides, Promotions, Blog.</li>
+        <strong class="font-medium text-gray-800">Travel Booking</strong> (Master)
+        <ul class="list-disc list-inside space-y-1 ml-6 mt-1 text-sm">
+            <li><strong>Purpose:</strong> The central aggregate root for the transaction.</li>
+            <li><strong>Fields:</strong> <code>customer</code> (Link to ERPNext Customer), <code>workflow_status</code> (Draft, Pending Payment, Processing, Confirmed, Ticketed, Cancelled, Failed), <code>total_amount</code>, <code>currency</code>, <code>amadeus_order_id</code>, <code>pnr_reference</code>, <code>sales_invoice</code> (Link).</li>
         </ul>
     </li>
     <li>
-        <strong class="font-medium text-gray-800">Finance & Settlement:</strong>
-        <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-            <li><strong>Billing & Invoicing:</strong> Customer Invoices, Agent Billings, Supplier Invoices.</li>
-            <li><strong>Payment Gateway Integration:</strong> Online Payments, Offline Payment Tracking.</li>
-            <li><strong>Commission Management:</strong> Agent Commissions, Supplier Payables.</li>
-            <li><strong>Refund Management:</strong> Processing, Tracking, Payouts.</li>
-            <li><strong>Accounting Integration:</strong> General Ledger, Chart of Accounts, Financial Reporting.</li>
+        <strong class="font-medium text-gray-800">Travel Booking Item</strong> (Child Table)
+        <ul class="list-disc list-inside space-y-1 ml-6 mt-1 text-sm">
+            <li><strong>Purpose:</strong> Specific flight segments within the booking.</li>
+            <li><strong>Fields:</strong> <code>carrier_code</code>, <code>flight_number</code>, <code>departure_time</code>, <code>arrival_time</code>, <code>cabin_class</code>, <code>status</code> (Confirmed/Waitlist).</li>
+        </ul>
+    </li>
+    <li>
+        <strong class="font-medium text-gray-800">Traveler</strong> (PII Heavy)
+        <ul class="list-disc list-inside space-y-1 ml-6 mt-1 text-sm">
+            <li><strong>Purpose:</strong> Passenger details.</li>
+            <li><strong>Fields:</strong> <code>first_name</code>, <code>last_name</code>, <code>dob</code>, <code>gender</code>, <code>nationality</code>.</li>
+            <li><strong>Security:</strong> <code>passport_number</code> and <code>expiry</code> <strong>MUST</strong> be Encrypted fields (Frappe <code>Data</code> type with 'Ignore XSS' or specialized Encrypted field).</li>
+        </ul>
+    </li>
+    <li>
+        <strong class="font-medium text-gray-800">Provider Log</strong> (Audit)
+        <ul class="list-disc list-inside space-y-1 ml-6 mt-1 text-sm">
+            <li><strong>Purpose:</strong> Debugging external calls.</li>
+            <li><strong>Fields:</strong> <code>endpoint</code>, <code>request_payload</code> (Redacted PII), <code>response_payload</code>, <code>status_code</code>, <code>duration_ms</code>.</li>
         </ul>
     </li>
 </ul>
 
-<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">2. Roles & Permissions Overview</h2>
-<ul class="list-disc list-inside space-y-2 ml-4 mb-6 text-gray-600">
-    <li><strong class="font-medium text-gray-800">Admin:</strong> Full system access. Configure settings, manage users, override operations, view all reports.</li>
-    <li><strong class="font-medium text-gray-800">Ops (Operations Executive):</strong> Manage bookings (create, modify, cancel), handle customer inquiries, communicate with vendors/agents, fulfill visas/add-ons. Limited financial view (e.g., booking values).</li>
-    <li><strong class="font-medium text-gray-800">Finance (Accountant/Finance Manager):</strong> Manage invoices (sales, purchase), process payments/refunds, reconcile accounts, generate financial reports. View all financial data.</li>
-    <li><strong class="font-medium text-gray-800">Vendor (Supplier User):</strong> Manage their specific inventory (e.g., hotel rooms, rates), view bookings pertaining to their services, update booking statuses, view payout statements. Restricted to their own data.</li>
-    <li><strong class="font-medium text-gray-800">Agent (Travel Agent):</strong> Create/manage bookings for their clients, view client profiles, track commissions, generate quotes. Restricted to their own and their clients' data.</li>
-    <li><strong class="font-medium text-gray-800">Customer (End User):</strong> View their own bookings, manage personal profile, make payments, request cancellations/modifications. Restricted to their own data.</li>
-</ul>
+<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">2. Booking State Machine</h2>
 
-<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">3. App Architecture (Frappe/ERPNext)</h2>
+<div class="bg-gray-800 text-green-400 p-4 rounded-md mb-6 font-mono text-xs overflow-x-auto">
+<pre>
+[User]                 [System]                  [Amadeus]                 [Finance]
+  |                       |                         |                         |
+  |-- (1) Search/Pick --->|                         |                         |
+  |                       |--(2) Price/Validate --->|                         |
+  |                       |<-- Offer JSON ----------|                         |
+  |                       |                         |                         |
+  |-- (3) Enter Pax/Pay ->|                         |                         |
+  |                       |-- (4) Create State:     |                         |
+  |                       |    "Pending Payment"    |                         |
+  |                       |                         |                         |
+  |-- (5) Payment Success>|                         |                         |
+  |                       |-- (6) Create State:     |                         |
+  |                       |    "Processing"         |                         |
+  |                       |------------------------>| (7) Create Order (PNR)  |
+  |                       |<-- Order ID/PNR --------|                         |
+  |                       |                         |                         |
+  |                       |-- (8) Create State:     |                         |
+  |                       |    "Booked"             |                         |
+  |                       |                         |----(9) Create Invoice ->|
+  |                       |                         |----(10) Payment Entry ->|
+  |                       |                         |                         |
+  |                       |-- (11) Async Job:       |                         |
+  |                       |    Issue Ticket --------> (12) Issue Ticket       |
+  |                       |<-- Ticket Numbers ------|                         |
+  |                       |                         |                         |
+  |                       |-- (13) Create State:    |                         |
+  |                       |    "Ticketed"           |                         |
+  |<-- (14) Email PDF ----|                         |                         |
+</pre>
+</div>
+
 <ul class="list-disc list-inside space-y-2 ml-4 mb-6 text-gray-600">
-    <li>
-        <strong class="font-medium text-gray-800">ERPNext (v15/v16):</strong>
-        <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-            <li><strong>Finance & Accounting:</strong> Sales Invoice, Purchase Invoice, Payment Entry, Journal Entry, Chart of Accounts, Bank Accounts, Supplier, Customer, General Ledger.</li>
-            <li><strong>HR (Limited):</strong> Employee Management (for internal staff).</li>
-            <li><strong>CRM (Limited):</strong> Lead/Opportunity Management (potential B2B clients).</li>
-            <li><strong>Support:</strong> Issue/Helpdesk module for customer and agent queries.</li>
-            <li><strong>Assets:</strong> Internal asset management.</li>
-        </ul>
-    </li>
-    <li>
-        <strong class="font-medium text-gray-800">Custom Apps:</strong>
-        <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-            <li>
-                <strong class="font-medium text-gray-800"><code>travel_core</code> (Frappe App):</strong>
-                <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-                    <li><strong>Purpose:</strong> Foundational data models and core travel business logic.</li>
-                    <li><strong>Logic/Data:</strong> DocTypes for <code>Flight Itinerary</code>, <code>Hotel Booking</code>, <code>Travel Package</code>, <code>Visa Application</code>, <code>AddOn Service</code>, <code>Passenger</code>, <code>Vendor</code> (extended ERPNext Supplier), <code>Agent</code> (extended ERPNext Customer/Company), <code>Airline</code>, <code>Hotel Property</code>. Pricing rules, currency conversion. Quote/Booking status workflows.</li>
-                </ul>
-            </li>
-            <li>
-                <strong class="font-medium text-gray-800"><code>booking_engine</code> (Frappe App):</strong>
-                <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-                    <li><strong>Purpose:</strong> Handles the complex search, availability, pricing, and booking orchestration across different product types and integrations.</li>
-                    <li><strong>Logic/Data:</strong> Search algorithms, availability caching, pricing aggregation, booking flow management, payment initiation integration, coupon/discount management, fare/rate validation. Interacts heavily with <code>travel_connectors</code>.</li>
-                </ul>
-            </li>
-            <li>
-                <strong class="font-medium text-gray-800"><code>travel_connectors</code> (Frappe App):</strong>
-                <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-                    <li><strong>Purpose:</strong> Abstraction layer for external APIs (Amadeus, Hotel Aggregators, Payment Gateways, SMS/Email).</li>
-                    <li><strong>Logic/Data:</strong> Connector configurations, API client implementations (e.g., <code>AmadeusAPI</code>, <code>HotelbedsAPI</code>), request/response mapping, error handling for external calls. Each external service gets its own sub-module or DocType.</li>
-                </ul>
-            </li>
-            <li>
-                <strong class="font-medium text-gray-800"><code>travel_portals</code> (Frappe App):</strong>
-                <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-                    <li><strong>Purpose:</strong> Houses the specific UI/UX and business logic for each user-facing portal (Customer, Agent, Vendor).</li>
-                    <li><strong>Logic/Data:</strong> Portal pages (templates), authentication/authorization for portal users, specific data views for each role, portal-specific workflows (e.g., agent quoting, vendor inventory updates). Utilizes REST APIs exposed by <code>travel_core</code> and <code>booking_engine</code>.</li>
-                </ul>
-            </li>
+    <li><strong>Sync Operations:</strong> Search, Price Validation, Booking Creation (internal), Payment Intent Creation.</li>
+    <li><strong>Async Operations:</strong> Amadeus Order Creation (PNR) can be sync, but <strong>Ticket Issuance</strong> must be async to handle API timeouts or manual fulfillment queues.</li>
+    <li><strong>Failure States:</strong>
+        <ul class="list-disc list-inside space-y-1 ml-6">
+            <li><code>Payment Failed</code>: User retries.</li>
+            <li><code>Booking Failed</code>: Payment taken, but PNR creation failed. <strong>Critical:</strong> Alert Ops immediately for manual refund or re-booking.</li>
+            <li><code>Ticketing Failed</code>: PNR created, but ticket issuance failed (credit limit/technical). Moves to <code>Needs Manual Review</code> queue.</li>
         </ul>
     </li>
 </ul>
 
-<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">4. Infrastructure Topology Recommendation</h2>
+<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">3. REST APIs (v1)</h2>
+<p class="mb-4 text-gray-600">These endpoints reside in <code>travel_core</code>/<code>booking_engine</code> and call <code>travel_connectors</code>.</p>
+
+<div class="space-y-4">
+    <div class="border-l-4 border-blue-500 pl-4">
+        <h4 class="font-bold text-gray-800">POST /api/v1/flights/search</h4>
+        <p class="text-sm text-gray-600">Wrapper for <code>shopping/flight-offers</code>.</p>
+        <code class="text-xs bg-gray-100 p-1 rounded">Input: { origin, destination, dates, travelers }</code>
+    </div>
+    <div class="border-l-4 border-blue-500 pl-4">
+        <h4 class="font-bold text-gray-800">POST /api/v1/flights/price</h4>
+        <p class="text-sm text-gray-600">Wrapper for <code>shopping/flight-offers/pricing</code>.</p>
+        <code class="text-xs bg-gray-100 p-1 rounded">Input: { offer_json_blob }</code>
+    </div>
+    <div class="border-l-4 border-green-500 pl-4">
+        <h4 class="font-bold text-gray-800">POST /api/v1/flights/book</h4>
+        <p class="text-sm text-gray-600">Creates <code>Travel Booking</code> (Draft) and initiates Payment.</p>
+        <code class="text-xs bg-gray-100 p-1 rounded">Input: { offer_id, travelers[], contact_details }</code>
+    </div>
+    <div class="border-l-4 border-purple-500 pl-4">
+        <h4 class="font-bold text-gray-800">GET /api/v1/bookings/{id}</h4>
+        <p class="text-sm text-gray-600">Returns status, PNR, and Ticket numbers.</p>
+    </div>
+    <div class="border-l-4 border-purple-500 pl-4">
+        <h4 class="font-bold text-gray-800">GET /api/v1/bookings/{id}/documents</h4>
+        <p class="text-sm text-gray-600">Returns links to PDF E-Ticket and Tax Invoice.</p>
+    </div>
+</div>
+
+<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">4. Async Jobs (Frappe Background Jobs)</h2>
 <ul class="list-disc list-inside space-y-2 ml-4 mb-6 text-gray-600">
-    <li><strong class="font-medium text-gray-800">Web Servers (Nginx + Gunicorn/Frappe Bench):</strong> Multiple instances for high availability and load balancing. Serve static assets (CDN offload). Reverse proxy to Frappe/Gunicorn workers.</li>
-    <li><strong class="font-medium text-gray-800">Frappe Workers (Gunicorn/Supervisor):</strong> Dedicated worker processes for HTTP requests (web.worker). Separate worker processes for background jobs (async.worker). Scalable horizontally based on load.</li>
-    <li><strong class="font-medium text-gray-800">Redis:</strong> Primary for caching (sessions, data, API responses). Used as a message broker for Frappe Queues (background jobs). Ephemeral storage for real-time operations.</li>
-    <li><strong class="font-medium text-gray-800">Database (PostgreSQL or MariaDB):</strong> Primary data persistence. High availability setup (e.g., master-replica with failover). Regular backups.</li>
-    <li><strong class="font-medium text-gray-800">Object Storage (S3-compatible, e.g., AWS S3, Google Cloud Storage):</strong> Store user-uploaded files (e.g., passport scans for visa), invoice PDFs, media assets. Scalable, durable, cost-effective.</li>
-    <li><strong class="font-medium text-gray-800">CDN (Content Delivery Network, e.g., Cloudflare, AWS CloudFront):</strong> Cache static assets (JS, CSS, images) for faster delivery. Improve website performance and reduce origin server load.</li>
-    <li>
-        <strong class="font-medium text-gray-800">Observability Stack (Monitoring, Logging, Tracing):</strong>
-        <ul class="list-disc list-inside space-y-1 ml-6 mt-1">
-            <li><strong>Monitoring:</strong> Prometheus/Grafana (system metrics, application metrics), Sentry (error tracking).</li>
-            <li><strong>Logging:</strong> Centralized log aggregation (ELK Stack, Loki+Promtail+Grafana, Datadog) for all application, web server, and worker logs.</li>
-            <li><strong>Tracing:</strong> Jaeger/OpenTelemetry for distributed tracing across microservices and external API calls.</li>
-        </ul>
+    <li><strong><code>jobs.issue_flight_booking(booking_id)</code>:</strong>
+        Triggered after successful payment.
+        <ol class="list-decimal list-inside ml-6 text-sm">
+            <li>Lock booking row.</li>
+            <li>Call Amadeus <code>booking/flight-orders</code>.</li>
+            <li>Update <code>pnr_reference</code>.</li>
+            <li>Call Amadeus <code>ticket-issuance</code> (if separate).</li>
+            <li>Update status to <code>Ticketed</code>.</li>
+            <li>Commit. On Error -> Move to <code>Needs Manual Review</code>.</li>
+        </ol>
+    </li>
+    <li><strong><code>jobs.generate_documents(booking_id)</code>:</strong>
+        Triggered after status becomes <code>Ticketed</code>. Generates PDF E-Ticket (HTML Template to PDF) and attaches to Doc.
+    </li>
+    <li><strong><code>jobs.send_notifications(booking_id)</code>:</strong>
+        Sends email with E-Ticket and Invoice attachments. Sends SMS confirmation.
     </li>
 </ul>
 
-<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">5. Non-Negotiable Engineering Rules</h2>
+<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">5. Customer Portal Screens (MVP)</h2>
 <ul class="list-disc list-inside space-y-2 ml-4 mb-6 text-gray-600">
-    <li><strong class="font-medium text-gray-800">Immutable Quote Snapshots:</strong> Any issued quote (Flight, Hotel, Package) must be snapshotted at the time of creation/issuance. Changes to underlying inventory, pricing, or taxes should not retrospectively alter an issued quote. A new quote revision/ID must be generated for any material change. This ensures auditability and prevents discrepancies between quoted and booked prices.</li>
-    <li><strong class="font-medium text-gray-800">Idempotency Keys for Book/Pay/Issue/Refund:</strong> All critical write operations (booking, payment, ticketing, refund processing) to external systems or internal financial ledgers <strong>must</strong> include an idempotency key. This prevents duplicate processing if a request is retried due to network issues or transient errors. Keys should be unique per operation and associated with the transaction context.</li>
-    <li><strong class="font-medium text-gray-800">Async Jobs + Retries + Dead-Letter Queue:</strong> Long-running or external API-dependent tasks (e.g., supplier booking confirmation, payment gateway callbacks, email notifications) <strong>must</strong> be processed asynchronously via Frappe Background Jobs. Implement robust retry mechanisms with exponential backoff for transient failures. Jobs failing after all retries <strong>must</strong> be moved to a Dead-Letter Queue (DLQ) for manual inspection and recovery. This prevents data loss and ensures eventual consistency.</li>
-    <li><strong class="font-medium text-gray-800">PII Encryption & Log Masking:</strong> Personally Identifiable Information (PII) such as passport numbers, credit card details (if stored), email addresses, phone numbers <strong>must</strong> be encrypted at rest in the database. Sensitive PII <strong>must</strong> be masked or redacted from all application logs, access logs, and monitoring dashboards. Access to decrypted PII should be strictly controlled via role-based access and audited. Implement secure transmission protocols (TLS/SSL) for all data in transit.</li>
+    <li><strong>My Trips (List View):</strong> Filters for Upcoming/Past/Cancelled. Shows Route, Date, Status (colored badge).</li>
+    <li><strong>Trip Details (Detail View):</strong>
+        <ul class="list-disc list-inside ml-6 text-sm">
+            <li>Header: PNR, Status, Total Amount.</li>
+            <li>Itinerary: Timeline view of segments (Airline Logo, Times, Terminal).</li>
+            <li>Travelers: List of names associated.</li>
+            <li>Action Buttons: "Download E-Ticket", "Download Invoice", "Request Support".</li>
+        </ul>
+    </li>
+    <li><strong>Support Modal:</strong> Simple form linked to ERPNext <code>Issue</code> DocType. Pre-fills Booking ID.</li>
+</ul>
+
+<h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-700">6. Minimal ERPNext Finance Integration</h2>
+<p class="mb-4 text-gray-600">For Phase 1, we treat financials transactionally without full accounting complexity.</p>
+<ul class="list-disc list-inside space-y-2 ml-4 mb-6 text-gray-600">
+    <li><strong>Sales Invoice Creation:</strong> Created automatically when <code>Travel Booking</code> status changes to <code>Processing</code> (Payment confirmed). Status: "Paid".</li>
+    <li><strong>Payment Entry:</strong> Created immediately upon payment gateway success webhook. Linked against the Sales Invoice.</li>
+    <li><strong>Revenue Recognition (Notes):</strong>
+        <br/><span class="text-sm italic">Phase 1 Shortcut:</span> The entire amount is booked as Income.
+        <br/><span class="text-sm italic">Phase 3 Requirement:</span> We will later split this into "Payable to Supplier" (Liability) and "Service Fee" (Income) using Purchase Invoices.
+    </li>
 </ul>
 `;
