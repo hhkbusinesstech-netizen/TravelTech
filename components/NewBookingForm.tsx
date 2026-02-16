@@ -32,9 +32,12 @@ const NewBookingForm: React.FC<NewBookingFormProps> = ({ onClose, onSubmit, init
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [numTravelers, setNumTravelers] = useState(1);
+  const [price, setPrice] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const formattedPrice = price ? `$${parseFloat(price).toFixed(2)}` : '$0.00';
+    
     const bookingData: NewBookingFormData = { // Explicitly type bookingData
       clientName,
       clientEmail,
@@ -47,7 +50,7 @@ const NewBookingForm: React.FC<NewBookingFormProps> = ({ onClose, onSubmit, init
       date: new Date().toISOString().slice(0, 10), // Current date
       id: `B${Math.random().toString(36).substr(2, 9).toUpperCase()}`, // Simple unique ID
       travelers: [`${clientName}`], // For simplicity, only clientName for now
-      price: '$0.00' // Price to be determined later
+      price: formattedPrice
     };
     onSubmit(bookingData);
     onClose(); // Close the form after submission
@@ -135,19 +138,35 @@ const NewBookingForm: React.FC<NewBookingFormProps> = ({ onClose, onSubmit, init
               />
             </div>
           </div>
-          <div>
-            <label htmlFor="numTravelers" className="block text-sm font-medium text-gray-700">Number of Travelers</label>
-            <input
-              type="number"
-              id="numTravelers"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={numTravelers}
-              onChange={(e) => setNumTravelers(Math.max(1, parseInt(e.target.value) || 1))}
-              min="1"
-              required
-              aria-required="true"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label htmlFor="numTravelers" className="block text-sm font-medium text-gray-700">Number of Travelers</label>
+                <input
+                type="number"
+                id="numTravelers"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={numTravelers}
+                onChange={(e) => setNumTravelers(Math.max(1, parseInt(e.target.value) || 1))}
+                min="1"
+                required
+                aria-required="true"
+                />
+            </div>
+            <div>
+                <label htmlFor="price" className="block text-sm font-medium text-gray-700">Estimated Price ($)</label>
+                <input
+                type="number"
+                id="price"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                />
+            </div>
           </div>
+          
           <div className="flex justify-end space-x-3 mt-6">
             <button
               type="button"

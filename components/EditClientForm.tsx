@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface ClientData {
@@ -8,6 +7,7 @@ interface ClientData {
   phone?: string;
   address?: string;
   totalBookings: number;
+  walletBalance?: number; // Preserve wallet balance even if not editable here
 }
 
 interface EditClientFormProps {

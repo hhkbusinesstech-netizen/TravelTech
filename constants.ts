@@ -1,154 +1,201 @@
 
 export const ARCHITECTURE_DOCUMENT_CONTENT = `
 <div class="space-y-8">
-  <div class="border-b pb-4">
-    <h1 class="text-3xl font-bold text-blue-900">Phase 1: Amadeus Flights MVP</h1>
-    <p class="text-gray-600 mt-2">End-to-End Implementation Specification: Search to Ticketing</p>
+  <div class="border-b pb-4 bg-gray-50 p-6 rounded-t-lg">
+    <h1 class="text-4xl font-bold text-blue-900">Travel Tech Architecture</h1>
+    <p class="text-gray-600 mt-2 text-lg">Phase 1 (MVP) & Phase 2 (B2B Agency Layer)</p>
   </div>
 
-  <section>
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">1. Booking Flow (ASCII)</h2>
-    <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs overflow-x-auto leading-relaxed">
-User                  Frappe/ERPNext             Amadeus API           Payment Gateway
- |                          |                         |                       |
- |--(1) Search Criteria --->|                         |                       |
- |                          |--(2) GET flight-offers->|                       |
- |                          |<-(3) JSON Offers -------|                       |
- |<-(4) Display Results ----|                         |                       |
- |                          |                         |                       |
- |--(5) Select Offer ------>|                         |                       |
- |                          |--(6) POST pricing ----->|                       |
- |                          |<-(7) Validated Offer ---|                       |
- |<-(8) Show Final Price ---|                         |                       |
- |                          |                         |                       |
- |--(9) Enter PAX & Pay --->|                         |                       |
- |                          |--(10) Create Booking (Draft)                    |
- |                          |--(11) Create Payment Intent ------------------->|
- |<-(12) Redirect/Prompt ---|                         |                       |
- |                          |                         |                       |
- |      (User Pays)         |                         |                       |
- |                          |<-(13) Webhook: Success -------------------------|
- |                          |--(14) Update Status: "Processing"               |
- |                          |--(15) Enqueue Job: issue_flight_booking         |
- |                          |                         |                       |
- |           [ASYNC]        |--(16) POST flight-orders (Create PNR) --------->|
- |                          |<-(17) PNR & Ticket # ---|                       |
- |                          |--(18) Update Status: "Ticketed"                 |
- |                          |--(19) Gen. Docs & Email |                       |
- |<-(20) Confirmation Email-|                         |                       |
-    </div>
+  <!-- PHASE 1 RECAP (Collapsed Visual) -->
+  <section class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+    <details>
+        <summary class="cursor-pointer text-xl font-bold text-gray-700 hover:text-blue-600 transition-colors">
+            Phase 1 Recap: Amadeus Flights MVP (Click to Expand)
+        </summary>
+        <div class="mt-4 pl-4 border-l-2 border-gray-200 text-sm text-gray-600">
+            <p><strong>Core Flow:</strong> Search -> Price -> Book -> Pay -> Issue (Async).</p>
+            <p><strong>Key DocTypes:</strong> Travel Booking, Flight Offer (Snapshot), Traveler.</p>
+            <p><strong>Finance:</strong> Direct Sales Invoice + Payment Entry (Gateway).</p>
+        </div>
+    </details>
   </section>
 
-  <section>
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">2. Data Model (DocTypes)</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="border p-4 rounded bg-white shadow-sm">
-        <h3 class="font-bold text-blue-700">Travel Booking (Master)</h3>
-        <ul class="list-disc ml-5 text-sm text-gray-700 mt-2">
-          <li><strong>Naming:</strong> TRV-BKG-.YYYY.-.#####</li>
-          <li><strong>Status:</strong> Draft, Pending Payment, Processing, Ticketed, Cancelled, Failed, Manual Review</li>
-          <li><strong>Fields:</strong> Customer (Link), Total Amount, Currency, Amadeus Order ID, PNR Reference</li>
-          <li><strong>References:</strong> Sales Invoice (Link), Payment Entry (Link)</li>
-        </ul>
-      </div>
-      <div class="border p-4 rounded bg-white shadow-sm">
-        <h3 class="font-bold text-blue-700">Flight Offer (Snapshot)</h3>
-        <ul class="list-disc ml-5 text-sm text-gray-700 mt-2">
-          <li><strong>Purpose:</strong> Immutable record of what was sold.</li>
-          <li><strong>Fields:</strong> Offer ID (Hash), Full JSON Blob, Expiry DateTime (TTL)</li>
-          <li><strong>Logic:</strong> If booking is attempted after TTL, force re-price.</li>
-        </ul>
-      </div>
-      <div class="border p-4 rounded bg-white shadow-sm">
-        <h3 class="font-bold text-blue-700">Traveler</h3>
-        <ul class="list-disc ml-5 text-sm text-gray-700 mt-2">
-          <li><strong>Fields:</strong> First/Last Name, DOB, Gender, Nationality</li>
-          <li><strong>PII Security:</strong> Passport Number & Expiry must be <code>Encrypted</code> field type.</li>
-        </ul>
-      </div>
-      <div class="border p-4 rounded bg-white shadow-sm">
-        <h3 class="font-bold text-blue-700">Provider API Log</h3>
-        <ul class="list-disc ml-5 text-sm text-gray-700 mt-2">
-          <li><strong>Fields:</strong> Endpoint, Method, Request (Redacted), Response, Status Code, Duration</li>
-          <li><strong>Retention:</strong> Auto-delete after 30 days.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
+  <!-- PHASE 2 START -->
+  <div class="mt-8 pt-6 border-t-2 border-indigo-100">
+    <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded uppercase tracking-wide">Phase 2 Focus</span>
+    <h2 class="text-3xl font-bold text-indigo-900 mt-2">B2B Agent Portal & Financials</h2>
+    <p class="text-gray-600 mt-2">Enabling multi-agent sales with strict isolation, dynamic markups, and wallet/credit management.</p>
+  </div>
 
-  <section>
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">3. Booking State Machine</h2>
-    <ul class="space-y-2 text-sm text-gray-800">
-      <li><span class="inline-block w-32 font-bold text-gray-600">Draft:</span> Initial creation, user filling details.</li>
-      <li><span class="inline-block w-32 font-bold text-yellow-600">Pending Payment:</span> Payment Intent created, awaiting gateway callback.</li>
-      <li><span class="inline-block w-32 font-bold text-blue-600">Processing:</span> Payment confirmed. Async job <code>issue_flight_booking</code> queued.</li>
-      <li><span class="inline-block w-32 font-bold text-green-600">Ticketed:</span> Success. PNR and Ticket Numbers received from Amadeus.</li>
-      <li><span class="inline-block w-32 font-bold text-red-600">Failed:</span> Payment failed.</li>
-      <li><span class="inline-block w-32 font-bold text-orange-600">Manual Review:</span> Payment success, but Amadeus booking/ticketing failed. Critical Alert.</li>
-    </ul>
-  </section>
-
-  <section>
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">4. REST APIs (v1)</h2>
-    <div class="bg-gray-50 p-4 rounded border">
-      <h4 class="font-mono font-bold text-blue-600">POST /v1/flights/search</h4>
-      <p class="text-sm text-gray-600 mb-2">Wrapper for <code>shopping/flight-offers</code></p>
+  <section class="mt-8">
+    <h3 class="text-2xl font-bold text-gray-800 mb-4">1. New Data Models (DocTypes)</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       
-      <h4 class="font-mono font-bold text-blue-600 mt-3">POST /v1/flights/price</h4>
-      <p class="text-sm text-gray-600 mb-2">Wrapper for <code>shopping/flight-offers/pricing</code>. Returns confirmable offer.</p>
+      <div class="border border-indigo-100 p-5 rounded-lg bg-white">
+        <h4 class="font-bold text-indigo-700 flex items-center">
+            <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+            Agent Partner
+        </h4>
+        <p class="text-sm text-gray-600 mt-1 mb-3">Represents the B2B Agency entity.</p>
+        <ul class="list-disc ml-5 text-sm text-gray-700 space-y-1">
+          <li><strong>Fields:</strong> Agency Name, Logo, Tax ID, Status (Active/Frozen).</li>
+          <li><strong>Finance:</strong> <code>Default Currency</code>, <code>Credit Limit</code> (Float), <code>Billing Customer</code> (Link to ERPNext Customer).</li>
+          <li><strong>Settings:</strong> <code>Allow Credit Booking</code> (Check), <code>Account Manager</code> (Link User).</li>
+        </ul>
+      </div>
 
-      <h4 class="font-mono font-bold text-blue-600 mt-3">POST /v1/flights/book</h4>
-      <pre class="bg-gray-100 p-2 text-xs mt-1 border rounded">
+      <div class="border border-indigo-100 p-5 rounded-lg bg-white">
+        <h4 class="font-bold text-indigo-700 flex items-center">
+            <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+            Agent User Mapping
+        </h4>
+        <p class="text-sm text-gray-600 mt-1 mb-3">Links ERPNext Users to an Agent Partner.</p>
+        <ul class="list-disc ml-5 text-sm text-gray-700 space-y-1">
+          <li><strong>Fields:</strong> <code>User</code> (Link), <code>Agent Partner</code> (Link), <code>Role</code> (Admin/Staff).</li>
+          <li><strong>Logic:</strong> Used in permission queries to filter visibility.</li>
+        </ul>
+      </div>
+
+      <div class="border border-indigo-100 p-5 rounded-lg bg-white">
+        <h4 class="font-bold text-indigo-700 flex items-center">
+            <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+            Agent Wallet & Ledger
+        </h4>
+        <p class="text-sm text-gray-600 mt-1 mb-3">Prepaid balance management.</p>
+        <ul class="list-disc ml-5 text-sm text-gray-700 space-y-1">
+          <li><strong>Agent Wallet:</strong> <code>Agent</code>, <code>Current Balance</code>, <code>Currency</code>.</li>
+          <li><strong>Wallet Transaction:</strong> <code>Amount</code>, <code>Type</code> (Credit/Debit), <code>Reference</code> (Booking/Payment Entry).</li>
+          <li><strong>Credit Ledger:</strong> Virtual limit tracking distinct from actual cash.</li>
+        </ul>
+      </div>
+
+      <div class="border border-indigo-100 p-5 rounded-lg bg-white">
+        <h4 class="font-bold text-indigo-700 flex items-center">
+            <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+            Markup Rule
+        </h4>
+        <p class="text-sm text-gray-600 mt-1 mb-3">Dynamic pricing engine.</p>
+        <ul class="list-disc ml-5 text-sm text-gray-700 space-y-1">
+          <li><strong>Scope:</strong> Global, Agent Group, Specific Agent.</li>
+          <li><strong>Filters:</strong> Supplier (Amadeus), Airline, Cabin, Route (Origin/Dest).</li>
+          <li><strong>Action:</strong> Fixed Amount OR Percentage.</li>
+          <li><strong>Priority:</strong> Integer (Higher applies first).</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="mt-8">
+    <h3 class="text-2xl font-bold text-gray-800 mb-4">2. Pricing Logic & Explainability</h3>
+    <div class="bg-gray-900 text-gray-300 p-5 rounded-lg font-mono text-xs overflow-x-auto">
+// Pricing Structure in "Flight Offer" Snapshot & "Travel Booking"
+
 {
-  "offer_id": "...",
-  "travelers": [{ ... }],
-  "contact": { ... }
+  "currency": "USD",
+  "base_fare": 100.00,      // From Amadeus
+  "taxes": 45.50,           // From Amadeus
+  "supplier_total": 145.50, // Cost to Platform
+
+  "pricing_components": [
+    {
+      "label": "Platform Markup",
+      "amount": 10.00,
+      "source": "Markup Rule #MR-2024-001 (Global 10%)"
+    },
+    {
+      "label": "Agent Markup",
+      "amount": 25.00,
+      "source": "Input by Agent User during checkout"
+    }
+  ],
+
+  "net_to_agent": 155.50,   // Amount deducted from Wallet (145.50 + 10.00)
+  "selling_price": 180.50   // Amount shown on Customer Ticket
 }
-// Returns: { "booking_id": "...", "payment_url": "..." }
-      </pre>
+    </div>
+    <p class="text-sm text-gray-500 mt-2 italic">
+        * "Net to Agent" is what we invoice. "Selling Price" is what the Agent invoices their client (off-platform or via generated receipt).
+    </p>
+  </section>
 
-      <h4 class="font-mono font-bold text-blue-600 mt-3">GET /v1/bookings/{id}</h4>
-      <p class="text-sm text-gray-600">Poll status. Returns PNR if Ticketed.</p>
+  <section class="mt-8">
+    <h3 class="text-2xl font-bold text-gray-800 mb-4">3. Security & Isolation (Hooks)</h3>
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <h4 class="font-bold text-yellow-800">Permission Query Condition</h4>
+        <p class="text-sm text-gray-700 mt-1">
+            We enforce strict data isolation via <code>hooks.py</code> permission queries.
+            An agent MUST ONLY see bookings linked to their Agency.
+        </p>
+    </div>
+    <div class="mt-4 bg-gray-100 p-4 rounded border border-gray-200 font-mono text-xs text-blue-800">
+# hooks.py
+permission_query_conditions = {
+    "Travel Booking": "travel_app.permissions.get_agent_booking_conditions",
+    "Traveler": "travel_app.permissions.get_agent_traveler_conditions"
+}
+
+# permissions.py
+def get_agent_booking_conditions(user):
+    if "System Manager" in frappe.get_roles(user):
+        return "" # See all
+    
+    agent_id = get_agent_for_user(user)
+    if agent_id:
+        # Only show bookings where the custom field 'agent_partner' matches
+        return f"agent_partner = '{agent_id}'"
+    
+    return "1=0" # Fallback: see nothing
     </div>
   </section>
 
-  <section>
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">5. Async Jobs & Worker Queues</h2>
-    <ul class="list-decimal ml-5 text-gray-700 space-y-2">
-      <li>
-        <strong>issue_flight_booking (High Priority Queue):</strong>
-        <br>Checks balance (if B2B) or payment status (B2C). Calls Amadeus <code>booking/flight-orders</code>. On success, updates Booking status to 'Ticketed' and commits PNR. On Amadeus 4xx/5xx, moves Booking to 'Manual Review'.
-      </li>
-      <li>
-        <strong>generate_documents (Default Queue):</strong>
-        <br>Generates HTML->PDF E-Ticket using Jinja template. Attaches to Booking DocType.
-      </li>
-      <li>
-        <strong>send_notifications (Default Queue):</strong>
-        <br>Sends transactional email with attachments.
-      </li>
-    </ul>
-  </section>
+  <section class="mt-8">
+    <h3 class="text-2xl font-bold text-gray-800 mb-4">4. Finance Integration (Wallet/Credit)</h3>
+    
+    <div class="space-y-4">
+        <div class="flex items-start">
+            <div class="flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs mt-1">A</div>
+            <div class="ml-3">
+                <h4 class="text-md font-bold text-gray-800">Booking via Wallet (Prepaid)</h4>
+                <p class="text-sm text-gray-600">
+                    1. <strong>Check:</strong> <code>Wallet Balance >= Net to Agent</code>.<br>
+                    2. <strong>Lock:</strong> Reserve funds temporarily.<br>
+                    3. <strong>Success:</strong> Create <code>Wallet Transaction</code> (Debit). Status -> Processing.<br>
+                    4. <strong>Invoice:</strong> Create Sales Invoice (Status: Paid). Link Transaction.
+                </p>
+            </div>
+        </div>
 
-  <section>
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">6. Finance Integration (MVP)</h2>
-    <div class="bg-yellow-50 p-4 border-l-4 border-yellow-400">
-      <h4 class="font-bold text-yellow-800">Trigger: State Change to "Processing"</h4>
-      <p class="text-sm text-gray-700 mt-1">
-        1. <strong>Create Sales Invoice:</strong> Customer = User, Item = "Flight Booking", Amount = Total Price. Status = "Paid".
-        <br>
-        2. <strong>Create Payment Entry:</strong> Linked to Sales Invoice. Mode of Payment = "Payment Gateway".
-      </p>
-      <p class="text-xs text-gray-500 mt-2 italic">Note: COGS/Supplier Invoice deferred to Phase 3.</p>
+        <div class="flex items-start">
+            <div class="flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs mt-1">B</div>
+            <div class="ml-3">
+                <h4 class="text-md font-bold text-gray-800">Booking via Credit Limit (Postpaid)</h4>
+                <p class="text-sm text-gray-600">
+                    1. <strong>Check:</strong> <code>(Current Debt + Net to Agent) <= Credit Limit</code>.<br>
+                    2. <strong>Record:</strong> Add to <code>Credit Limit Ledger</code>.<br>
+                    3. <strong>Invoice:</strong> Create Sales Invoice (Status: Unpaid/Overdue). Payment Term: Net 15/30.<br>
+                    4. <strong>Settlement:</strong> Agent pays bulk via Bank Transfer. Admin creates Payment Entry to clear Invoices.
+                </p>
+            </div>
+        </div>
     </div>
   </section>
 
-  <section>
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">7. Customer Portal (MVP)</h2>
-    <ul class="list-disc ml-5 text-gray-700">
-      <li><strong>My Trips:</strong> List view filtered by Owner. Tabs: Upcoming, Past, Cancelled.</li>
-      <li><strong>Booking Details:</strong> PNR display, Flight Segments (Carrier, Time, Terminal), Passenger List.</li>
-      <li><strong>Actions:</strong> Download E-Ticket (PDF), Download Invoice (PDF), Report Issue (creates Support Ticket).</li>
+  <section class="mt-8">
+    <h3 class="text-2xl font-bold text-gray-800 mb-4">5. Agent Portal Deliverables</h3>
+    <ul class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+        <li class="bg-gray-50 p-3 rounded border border-gray-200">
+            <strong>Agent Dashboard:</strong> Wallet Balance widget, Credit Limit usage bar, Recent Bookings table, Quick Search.
+        </li>
+        <li class="bg-gray-50 p-3 rounded border border-gray-200">
+            <strong>B2B Search Flow:</strong> Standard search but prices displayed are "Net" by default. Toggle to "Show Commission".
+        </li>
+        <li class="bg-gray-50 p-3 rounded border border-gray-200">
+            <strong>Markup Control:</strong> During checkout, Agent can add "Service Fee" (Fixed) or "Margin" (%) before generating the Quote/PDF.
+        </li>
+        <li class="bg-gray-50 p-3 rounded border border-gray-200">
+            <strong>Reports:</strong> "Agent Sales Register", "Profitability Report" (Markup vs Cost), "Statement of Accounts".
+        </li>
     </ul>
   </section>
 </div>
