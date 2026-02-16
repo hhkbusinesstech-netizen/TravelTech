@@ -1,0 +1,5 @@
+{
+  "name": "TravelTech - Global Ticketing System ",
+  "description": "A document outlining the system foundation for a ShareTrip-style multivendor travel booking platform using ERPNext and custom Frappe apps.",
+  "requestFramePermissions": []
+}
